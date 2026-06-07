@@ -20,21 +20,31 @@ import os
 import sys
 
 
+class PdfFile:
+    def __init__(self, path: str):
+        self._path = path
+        self._correction_path = None
+
+    def set_correction_path(self, correction_path: str):
+        """
+        Sets the correction PDF's path.
+        :param correction_path: The correction PDF's path.
+        """
+        self._correction_path = correction_path
+
 def get_default_pdf_directory_absolute_path() -> str:
     """
-    Returns the absolute path to the default PDF save directory.
+    Returns the absolute path to the default PDF directory.
     The default directory is the 'pdf' directory located in this script's directory. Please be aware that this directory
     might not be writeable.
-    :return: the absolute path to the default PDF save directory.
+    :return: the absolute path to the default PDF directory.
     """
-    # Use the os module to determine the path to the script's directory, and add the default PDF save directory name
+    # Use the os module to determine the path to the script's directory, and add the default PDF directory name
     # which is obviously 'pdf'
     script_directory_path = os.path.abspath(os.path.dirname(__file__))
 
-    # Thank you very much Micro$oft
-    if sys.platform == "win32":
-        return script_directory_path + "\\pdf"
-    return script_directory_path + "/pdf"
+    # Return the full path to the PDF directory
+    return os.path.join(script_directory_path, "pdf")
 
 def init_pdf_directory(pdf_dir_path: str):
     """
@@ -70,6 +80,36 @@ def init_parse_arguments() -> argparse.Namespace:
     # Return the parsed arguments
     return argument_parser.parse_args()
 
+def init_index_pdf_files(pdf_dir_path: str) -> list[PdfFile]:
+    """
+    Indexes the PDF subjects in the PDF directory and tries to search for their correction.
+    :param pdf_dir_path: The path to the PDF directory to index.
+    :return: A list of `PdfFile` objects.
+    """
+    # List of PDF files for later
+    pdfs: list[PdfFile] = [  ]
+
+    # Use the os.walk function to search for PDF files
+    for root, directories, files in os.walk(pdf_dir_path):
+        for file in files:
+            # Check if the file is a subject PDF file
+            if file.endswith(".subject.pdf"):
+                # Create a new PdfFile object
+                pdf_file = PdfFile(file)
+
+                # Attempt to find a correction. The corrections have the same basename but end with ".correction.pdf".
+                correction_path = file.split(sep=".subject.pdf")[0]
+
+                if os.path.isfile(correction_path):
+                    # If the correction exists, register it.
+                    pdf_file.set_correction_path(correction_path)
+
+                # Add the PdfFile object to the list
+                pdfs.append(pdf_file)
+
+    # Return the PDF list
+    return pdfs
+
 def main():
     """
     Main routine.
@@ -80,6 +120,9 @@ def main():
 
     # Initialise the PDF directory
     init_pdf_directory(arguments.pdf_directory)
+
+    # Index the PDFs in the PDF directory
+    pdf_files: list[PdfFile] = init_index_pdf_files(arguments.pdf_directory)
 
     return 0
 
